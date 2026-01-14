@@ -1,14 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { getNews, type Sort } from '../api/news'
 import type { NewsCategory, NewsItem } from '../types/news'
-
-type Sort = 'date_desc' | 'date_asc'
-
-interface NewsResponse {
-  items: NewsItem[]
-  total: number
-}
 
 const router = useRouter()
 const route = useRoute()
@@ -28,10 +22,6 @@ const total = ref(0)
 
 const loading = ref(false)
 const error = ref<string | null>(null)
-
-const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
-const canPrev = computed(() => page.value > 1)
-const canNext = computed(() => page.value < totalPages.value)
 
 function parseIntParam(v: unknown, fallback: number) {
   const n = typeof v === 'string' ? Number(v) : Array.isArray(v) ? Number(v[0]) : NaN
@@ -89,36 +79,33 @@ watch(
   { immediate: true },
 )
 
+let controller: AbortController | null = null
+
 async function load() {
+  controller?.abort()
+  controller = new AbortController()
+
   loading.value = true
   error.value = null
 
   try {
-    const url = new URL('/api/news', window.location.origin)
-    url.searchParams.set('q', debouncedQuery.value)
-    url.searchParams.set('category', category.value)
-    url.searchParams.set('sort', sort.value)
-    url.searchParams.set('page', String(page.value))
-    url.searchParams.set('pageSize', String(pageSize.value))
+    const data = await getNews({
+      q: debouncedQuery.value,
+      category: category.value,
+      sort: sort.value,
+      page: page.value,
+      pageSize: pageSize.value,
+      signal: controller.signal,
+    })
 
-    const res = await fetch(url.toString())
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-
-    const data = (await res.json()) as NewsResponse
     items.value = data.items
     total.value = data.total
   } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') return
     error.value = e instanceof Error ? e.message : String(e)
   } finally {
     loading.value = false
   }
-}
-
-function prevPage() {
-  page.value = Math.max(1, page.value - 1)
-}
-function nextPage() {
-  page.value = Math.min(totalPages.value, page.value + 1)
 }
 
 watch([debouncedQuery, category, sort, pageSize], () => {
@@ -146,7 +133,6 @@ onMounted(() => {
 <template lang="pug">
 section.page
   header.page__header
-    h2.page__title Новости
 
   form.filters(@submit.prevent)
     label.field
@@ -184,10 +170,19 @@ section.page
     template(v-else)
       div.toolbar
         p.muted
-          | Всего: {{ total }} · страница {{ page }} / {{ totalPages }}
+          | Всего: {{ total }} · страница {{ page }} / {{ Math.max(1, Math.ceil(total / pageSize)) }}
         nav.pager
-          button.btn.btn--ghost(type="button" @click="prevPage" :disabled="!canPrev") Назад
-          button.btn(type="button" @click="nextPage" :disabled="!canNext") Вперёд
+          button.btn.btn--ghost(
+          type="button"
+          @click="page = Math.max(1, page - 1)"
+          :disabled="page <= 1"
+          ) Назад
+
+          button.btn(
+            type="button"
+            @click="page = Math.min(Math.max(1, Math.ceil(total / pageSize)), page + 1)"
+            :disabled="page >= Math.max(1, Math.ceil(total / pageSize))"
+          ) Вперёд
 
       p.muted(v-if="items.length === 0") Ничего не найдено.
 
@@ -202,22 +197,7 @@ section.page
 
 
 <style scoped>
-.page__header {
-  margin-bottom: 16px;
-}
-
-.page__title {
-  margin: 0 0 4px;
-  font-size: 20px;
-  font-weight: 800;
-}
-
-.page__subtitle {
-  margin: 0;
-  color: var(--muted);
-  font-size: 13px;
-}
-
+  
 .filters {
   display: grid;
   grid-template-columns: 1.2fr 1fr 1fr 0.6fr;
