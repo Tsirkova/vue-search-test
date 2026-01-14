@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import type { NewsCategory, NewsItem } from '../types/news'
 
 type Sort = 'date_desc' | 'date_asc'
@@ -8,6 +9,9 @@ interface NewsResponse {
   items: NewsItem[]
   total: number
 }
+
+const router = useRouter()
+const route = useRoute()
 
 const query = ref('')
 const debouncedQuery = ref('')
@@ -25,12 +29,54 @@ const total = ref(0)
 const loading = ref(false)
 const error = ref<string | null>(null)
 
-const totalPages = computed(() => {
-  return Math.max(1, Math.ceil(total.value / pageSize.value))
-})
-
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
 const canPrev = computed(() => page.value > 1)
 const canNext = computed(() => page.value < totalPages.value)
+
+function parseIntParam(v: unknown, fallback: number) {
+  const n = typeof v === 'string' ? Number(v) : Array.isArray(v) ? Number(v[0]) : NaN
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback
+}
+
+function parseStringParam(v: unknown, fallback: string) {
+  if (typeof v === 'string') return v
+  if (Array.isArray(v) && typeof v[0] === 'string') return v[0]
+  return fallback
+}
+
+function isNewsCategory(v: string): v is NewsCategory {
+  return v === 'company' || v === 'tech' || v === 'events'
+}
+function isSort(v: string): v is Sort {
+  return v === 'date_desc' || v === 'date_asc'
+}
+
+function applyRouteToState() {
+  const q = parseStringParam(route.query.q, '')
+  const catRaw = parseStringParam(route.query.category, 'all')
+  const sortRaw = parseStringParam(route.query.sort, 'date_desc')
+
+  query.value = q
+  debouncedQuery.value = q
+
+  category.value = catRaw === 'all' ? 'all' : isNewsCategory(catRaw) ? catRaw : 'all'
+  sort.value = isSort(sortRaw) ? sortRaw : 'date_desc'
+
+  page.value = parseIntParam(route.query.page, 1)
+  pageSize.value = parseIntParam(route.query.pageSize, 5)
+}
+
+async function syncStateToRoute() {
+  await router.replace({
+    query: {
+      q: debouncedQuery.value || undefined,
+      category: category.value !== 'all' ? category.value : undefined,
+      sort: sort.value !== 'date_desc' ? sort.value : undefined,
+      page: page.value !== 1 ? String(page.value) : undefined,
+      pageSize: pageSize.value !== 5 ? String(pageSize.value) : undefined,
+    },
+  })
+}
 
 watch(
   query,
@@ -81,9 +127,18 @@ watch([debouncedQuery, category, sort, pageSize], () => {
 
 watch([debouncedQuery, category, sort, page, pageSize], () => {
   void load()
+  void syncStateToRoute()
 })
 
+watch(
+  () => route.query,
+  () => {
+    applyRouteToState()
+  },
+)
+
 onMounted(() => {
+  applyRouteToState()
   void load()
 })
 </script>
