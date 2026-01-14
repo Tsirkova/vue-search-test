@@ -4,7 +4,9 @@ import './styles/main.css'
 import App from './App.vue'
 
 async function enableMocking() {
-  if (!import.meta.env.DEV) return
+  const shouldMock = import.meta.env.DEV || import.meta.env.VITE_ENABLE_MSW === 'true'
+  if (!shouldMock) return
+
   const { worker } = await import('./mock/browser')
   await worker.start({ onUnhandledRequest: 'bypass' })
 }
