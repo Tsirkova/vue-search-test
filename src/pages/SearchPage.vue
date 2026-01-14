@@ -144,55 +144,237 @@ onMounted(() => {
 </script>
 
 <template lang="pug">
-main
-  h1 Новости
+section.page
+  header.page__header
+    h2.page__title Новости
 
-  form(@submit.prevent)
-    div
-      label(for="q") Поиск
-      input#q(v-model="query" placeholder="Заголовок или описание")
+  form.filters(@submit.prevent)
+    label.field
+      span.field__label Поиск
+      input.field__control(type="text" v-model="query" placeholder="Заголовок или описание")
 
-    div
-      label(for="cat") Категория
-      select#cat(v-model="category")
+    label.field
+      span.field__label Категория
+      select.field__control(v-model="category")
         option(value="all") Все
         option(value="company") Компания
         option(value="tech") Технологии
         option(value="events") События
 
-    div
-      label(for="sort") Сортировка
-      select#sort(v-model="sort")
+    label.field
+      span.field__label Сортировка
+      select.field__control(v-model="sort")
         option(value="date_desc") Сначала новые
         option(value="date_asc") Сначала старые
 
-    div
-      label(for="ps") На странице
-      select#ps(v-model.number="pageSize")
+    label.field
+      span.field__label На странице
+      select.field__control(v-model.number="pageSize")
         option(:value="5") 5
         option(:value="10") 10
 
-  hr
+  div.status
+    template(v-if="loading")
+      p.muted Загрузка...
 
-  template(v-if="loading")
-    p Загрузка...
+    template(v-else-if="error")
+      p.error Ошибка: {{ error }}
+      button.btn(type="button" @click="load") Повторить
 
-  template(v-else-if="error")
-    p Ошибка: {{ error }}
-    button(type="button" @click="load") Повторить
+    template(v-else)
+      div.toolbar
+        p.muted
+          | Всего: {{ total }} · страница {{ page }} / {{ totalPages }}
+        nav.pager
+          button.btn.btn--ghost(type="button" @click="prevPage" :disabled="!canPrev") Назад
+          button.btn(type="button" @click="nextPage" :disabled="!canNext") Вперёд
 
-  template(v-else)
-    p Всего: {{ total }} (страница {{ page }} из {{ totalPages }})
+      p.muted(v-if="items.length === 0") Ничего не найдено.
 
-    nav
-      button(type="button" @click="prevPage" :disabled="!canPrev") Назад
-      button(type="button" @click="nextPage" :disabled="!canNext") Вперёд
-
-    p(v-if="items.length === 0") Ничего не найдено.
-
-    ul(v-else)
-      li(v-for="n in items" :key="n.id")
-        h3 {{ n.title }}
-        p {{ n.description }}
-        small {{ n.date }} · {{ n.category }}
+      ul.list(v-else)
+        li.card(v-for="n in items" :key="n.id")
+          div.card__top
+            h3.card__title {{ n.title }}
+            span.badge {{ n.category }}
+          p.card__desc {{ n.description }}
+          p.card__meta {{ n.date }}
 </template>
+
+
+<style scoped>
+.page__header {
+  margin-bottom: 16px;
+}
+
+.page__title {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.page__subtitle {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr 0.6fr;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+}
+
+@media (max-width: 820px) {
+  .filters {
+    grid-template-columns: 1fr;
+  }
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field__label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.field__control {
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--text);
+  outline: none;
+}
+
+.field__control:focus {
+  border-color: color-mix(in srgb, var(--primary) 55%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
+}
+
+.status {
+  margin-top: 14px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 10px 0 12px;
+}
+
+@media (max-width: 520px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+.pager {
+  display: flex;
+  gap: 8px;
+}
+
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 12px;
+  background: #fff;
+}
+
+.card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.card__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.card__desc {
+  margin: 0 0 8px;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.card__meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  border: 1px solid #e0e7ff;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.muted {
+  color: var(--muted);
+  margin: 0;
+}
+
+.error {
+  color: #b91c1c;
+  margin: 0 0 10px;
+}
+
+.btn {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--primary);
+}
+
+.btn--ghost:hover {
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+}
+</style>
