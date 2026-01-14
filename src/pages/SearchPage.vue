@@ -10,6 +10,9 @@ interface NewsResponse {
 }
 
 const query = ref('')
+const debouncedQuery = ref('')
+let debounceTimer: number | undefined
+
 const category = ref<NewsCategory | 'all'>('all')
 const sort = ref<Sort>('date_desc')
 
@@ -29,13 +32,24 @@ const totalPages = computed(() => {
 const canPrev = computed(() => page.value > 1)
 const canNext = computed(() => page.value < totalPages.value)
 
+watch(
+  query,
+  (newVal) => {
+    if (debounceTimer) window.clearTimeout(debounceTimer)
+    debounceTimer = window.setTimeout(() => {
+      debouncedQuery.value = newVal
+    }, 300)
+  },
+  { immediate: true },
+)
+
 async function load() {
   loading.value = true
   error.value = null
 
   try {
     const url = new URL('/api/news', window.location.origin)
-    url.searchParams.set('q', query.value)
+    url.searchParams.set('q', debouncedQuery.value)
     url.searchParams.set('category', category.value)
     url.searchParams.set('sort', sort.value)
     url.searchParams.set('page', String(page.value))
@@ -61,11 +75,11 @@ function nextPage() {
   page.value = Math.min(totalPages.value, page.value + 1)
 }
 
-watch([query, category, sort, pageSize], () => {
+watch([debouncedQuery, category, sort, pageSize], () => {
   page.value = 1
 })
 
-watch([query, category, sort, page, pageSize], () => {
+watch([debouncedQuery, category, sort, page, pageSize], () => {
   void load()
 })
 
