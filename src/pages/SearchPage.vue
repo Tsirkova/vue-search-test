@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { onMounted, ref, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getNews, type Sort } from '../api/news'
 import type { NewsCategory, NewsItem } from '../types/news'
@@ -23,6 +23,8 @@ const total = ref(0)
 const loading = ref(false)
 const error = ref<string | null>(null)
 
+const isRestoringFromUrl = ref(true)
+
 function parseIntParam(v: unknown, fallback: number) {
   const n = typeof v === 'string' ? Number(v) : Array.isArray(v) ? Number(v[0]) : NaN
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback
@@ -37,6 +39,7 @@ function parseStringParam(v: unknown, fallback: string) {
 function isNewsCategory(v: string): v is NewsCategory {
   return v === 'company' || v === 'tech' || v === 'events'
 }
+
 function isSort(v: string): v is Sort {
   return v === 'date_desc' || v === 'date_asc'
 }
@@ -54,6 +57,10 @@ function applyRouteToState() {
 
   page.value = parseIntParam(route.query.page, 1)
   pageSize.value = parseIntParam(route.query.pageSize, 5)
+
+  nextTick(() => {
+    isRestoringFromUrl.value = false
+  })
 }
 
 async function syncStateToRoute() {
@@ -75,9 +82,7 @@ watch(
     debounceTimer = window.setTimeout(() => {
       debouncedQuery.value = newVal
     }, 300)
-  },
-  { immediate: true },
-)
+  })
 
 let controller: AbortController | null = null
 
@@ -109,24 +114,27 @@ async function load() {
 }
 
 watch([debouncedQuery, category, sort, pageSize], () => {
+  if (isRestoringFromUrl.value) return
   page.value = 1
 })
 
 watch([debouncedQuery, category, sort, page, pageSize], () => {
   void load()
-  void syncStateToRoute()
+  if (! isRestoringFromUrl.value) {
+    void syncStateToRoute()
+  }
 })
 
 watch(
   () => route.query,
   () => {
-    applyRouteToState()
-  },
-)
+  isRestoringFromUrl.value = true
+  applyRouteToState()
+})
 
 onMounted(() => {
+  isRestoringFromUrl.value = true
   applyRouteToState()
-  void load()
 })
 </script>
 
@@ -195,9 +203,7 @@ section.page
           p.card__meta {{ n.date }}
 </template>
 
-
 <style scoped>
-  
 .filters {
   display: grid;
   grid-template-columns: 1.2fr 1fr 1fr 0.6fr;
