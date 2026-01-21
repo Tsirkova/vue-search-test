@@ -135,6 +135,7 @@ watch(
 onMounted(() => {
   isRestoringFromUrl.value = true
   applyRouteToState()
+  void load()
 })
 </script>
 
