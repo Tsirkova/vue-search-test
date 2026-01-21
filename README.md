@@ -1,5 +1,96 @@
-# Vue 3 + TypeScript + Vite
+# Vue Search Test
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+Тестовое задание:  приложение для поиска и фильтрации новостей с синхронизацией состояния через URL. 
 
-Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
+## Технологии
+
+- **Vue 3** 
+- **TypeScript**
+- **Vue Router** (синхронизация фильтров с URL)
+- **Pug** (шаблонизатор)
+- **MSW** (Mock Service Worker для имитации API)
+- **Vite** (сборка и dev-сервер)
+
+## Реализованный функционал
+
+- Поиск по тексту с debounce (300 мс)
+- Фильтрация по категориям (`company`, `tech`, `events`, `all`)
+- Сортировка по дате 
+- Пагинация с настройкой количества элементов на странице
+- Синхронизация всех параметров с URL
+- Отмена предыдущих запросов (`AbortController`) при изменении фильтров
+- Отображение общего количества объектов и страниц
+- Обработка состояния загрузки и сетевых ошибок
+
+## Установка и запуск
+
+```bash
+# Установка зависимостей
+npm install
+
+# Запуск dev-сервера (http://localhost:5173)
+npm run dev
+
+# Сборка для production
+npm run build
+
+# Превью production-сборки
+npm run preview
+```
+
+## Мок API (MSW)
+
+В dev-режиме запросы к `/api/news` обрабатываются через MSW.
+
+**Эндпоинт:** `GET /api/news`
+
+**Query-параметры:**
+- `q` — поисковый запрос (string)
+- `category` — категория:  `all` | `company` | `tech` | `events`
+- `sort` — сортировка: `date_desc` | `date_asc`
+- `page` — номер страницы
+- `pageSize` — количество элементов на странице
+
+**Ответ:**
+```json
+{
+  "items": [... ],
+  "total": 42
+}
+```
+
+## Генерация данных
+
+100 новостей генерируются в src/mock/data.ts на основе шаблонов:
+
+**Категории:**
+
+- `company` — новости компании (планы, итоги, политики)
+- `tech` — технологии (Vue, TypeScript, архитектура)
+- `events` — события (митапы, воркшопы, конференции)
+
+Каждая категория имеет свой набор заголовков и описаний, которые ротируются для создания разнообразия.
+
+## Структура проекта
+
+```
+src/
+├── api/
+│   └── news. ts          # API-клиент для запросов
+├── mocks/
+│   ├── browser.ts       # Настройка MSW для браузера
+│   └── handlers.ts      # Обработчики API
+│   └── data.ts          # Генерация новостей
+├── pages/
+│   └── SearchPage.vue   # Основная страница
+├── router/
+│   └── index. ts        # Роутер
+├── styles/
+│   └── main. css        # Глобальные стили и CSS-переменные
+├── types/
+│   └── news.ts          # TypeScript-типы
+├── App.vue              # Корневой компонент
+└── main.ts              # Точка входа
+```
+
+ *[Ссылка на демо](https://vue-search-test.vercel.app/)*

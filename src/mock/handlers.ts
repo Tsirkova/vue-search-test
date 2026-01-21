@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw'
-import { NEWS } from '../mock/news'
+import { NEWS } from './data'
 import type { NewsCategory, NewsItem } from '../types/news'
 
 function includesInsensitive(haystack: string, needle: string) {
